@@ -74,6 +74,16 @@ Dê dois cliques em **`iniciar.bat`**. O navegador abre em `http://127.0.0.1:876
 5. **Jogadores**: confira quem é quem no Valorant. Fica salvo para as próximas.
 6. **Analisar**. O progresso aparece à direita; ao terminar, clique na análise para ver o relatório.
 
+### Evolução
+
+A aba **Evolução** junta todas as análises salvas:
+
+- **Time**: um gráfico por métrica (interrupções por round, fala sobreposta, fala de morto por round, clutches em silêncio, call seguida, compra dividida), partida a partida. Cada um compara a média das **3 últimas partidas** com a das anteriores e diz se melhorou, piorou ou ficou estável (precisa de 4 partidas).
+- **Jogadores**: escolha a métrica e veja a linha de cada um, mais uma tabela com a média e a tendência de todos.
+- **Mapas**: partidas, vitórias e as médias de cada métrica por mapa.
+
+Passe o mouse (ou toque) num gráfico para ver os números daquela partida. Para ver a aba com dados de exemplo: `python exemplos\demo.py --historico`.
+
 ## Gravando a partida
 
 1. Adicione o [Craig](https://craig.chat) ao servidor do Discord.
@@ -146,7 +156,6 @@ correcoes:          # erros que se repetem na sua call
 ## Próximos passos
 
 - [ ] **Tom de voz**: emoção pelo áudio (emotion2vec) + leitura do texto por um LLM local (tilt, crítica, irritação).
-- [ ] Comparar partidas (evolução do time ao longo do tempo).
 - [ ] Clipes: exportar os piores momentos como áudios curtos.
 - [ ] Tempo de reação da info depois de morrer e conteúdo da fala (posição, vida) x reclamação.
 - [ ] Resumo da partida por um LLM local.

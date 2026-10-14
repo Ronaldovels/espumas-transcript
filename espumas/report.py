@@ -9,8 +9,15 @@ from .export import fmt_clock
 from .game import FASE_LABEL
 from .models import Utterance
 
-CORES = ["#3b82f6", "#f59e0b", "#10b981", "#ec4899", "#8b5cf6",
-         "#06b6d4", "#ef4444", "#84cc16", "#f97316", "#64748b"]
+# Cor fixa por posição do jogador (paleta categórica validada para daltonismo).
+# As cores reais ficam em --p1..--p8 no CSS, com versões para modo claro e escuro.
+CORES = [f"var(--p{i})" for i in range(1, 9)]
+PALETA_CSS = """
+:root{--p1:#2a78d6;--p2:#eb6834;--p3:#1baf7a;--p4:#eda100;--p5:#e87ba4;--p6:#008300;
+--p7:#6250d6;--p8:#e34948}
+@media (prefers-color-scheme:dark){:root{--p1:#3987e5;--p2:#d95926;--p3:#199e70;--p4:#c98500;
+--p5:#d55181;--p6:#008300;--p7:#9085e9;--p8:#e66767}}
+"""
 
 PAGINA_S = 120  # sem partida: cada linha da linha do tempo cobre 2 minutos
 
@@ -29,8 +36,8 @@ _METODO_LABEL = {
 CSS = """
 :root{--bg:#f7f7f8;--card:#fff;--fg:#17181c;--muted:#6b7080;--line:#e3e4e8;--bad:#dc2626;
 --bad-bg:rgba(220,38,38,.12);--warn:#d97706;--good:#059669;--good-bg:rgba(5,150,105,.12);
---chip-fg:#fff;--buy:rgba(100,116,139,.10)}
-@media (prefers-color-scheme:dark){:root{--bg:#111215;--card:#1a1b20;--fg:#ececf1;
+--chip-fg:#0d1820;--buy:rgba(100,116,139,.10)}
+@media (prefers-color-scheme:dark){:root{--chip-fg:#0d1820;--bg:#111215;--card:#1a1b20;--fg:#ececf1;
 --muted:#9a9eab;--line:#2b2d35;--bad:#f87171;--bad-bg:rgba(248,113,113,.16);--warn:#fbbf24;
 --good:#34d399;--good-bg:rgba(52,211,153,.14);--buy:rgba(148,163,184,.10)}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);
@@ -370,7 +377,7 @@ def render_report(timeline: list[Utterance], metrics: dict, meta: dict, path: Pa
     h: list[str] = []
     h.append(f'<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
              f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-             f'<title>Call {_e(meta.get("nome", ""))}</title><style>{CSS}'
+             f'<title>Call {_e(meta.get("nome", ""))}</title><style>{PALETA_CSS}{CSS}'
              f'body.hits-only .tr:not(.hit){{display:none!important}}</style></head><body><main>')
     h.append(f'<h1>Análise da call — {_e(meta.get("nome", "partida"))}</h1>')
     sub = [f'{fmt_clock(r["duracao_s"])} de gravação', f'{len(players)} jogadores']

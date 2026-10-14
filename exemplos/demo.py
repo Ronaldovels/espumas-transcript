@@ -64,5 +64,39 @@ def _audio_de_exemplo(per_player, out: Path, duracao: float) -> None:
         mix_tracks(paths, out)
 
 
+MAPAS = ["Ascent", "Bind", "Lotus", "Ascent", "Haven", "Bind", "Ascent", "Sunset"]
+
+
+def historico(saida: Path = Path("saida"), n: int = 8) -> None:
+    """Gera n análises inventadas em dias diferentes, para ver a aba Evolução."""
+    from datetime import timedelta
+
+    for k in range(n):
+        raw = exemplo.raw_match(seed=10 + k)
+        raw["metadata"]["map"]["name"] = MAPAS[k % len(MAPAS)]
+        raw["metadata"]["match_id"] = f"demo-{k:04d}"
+        dia = exemplo.INICIO_PARTIDA - timedelta(days=2 * (n - k))
+        raw["metadata"]["started_at"] = dia.isoformat().replace("+00:00", "Z")
+        match = normalize_match(raw, exemplo.NOSSOS[0][1])
+        per_player = exemplo.call_sintetica(raw, OFFSET, seed=20 + k)
+        # O time "melhora" com o tempo: menos gente falando depois de morrer
+        if k >= n // 2:
+            for p in per_player:
+                per_player[p] = [u for i, u in enumerate(per_player[p])
+                                 if u.text not in exemplo.FRASES["morto"] or i % 2]
+        out = saida / f"2026-demo-{k:02d}"
+        out.mkdir(parents=True, exist_ok=True)
+        cfg = load_config()
+        meta = {"nome": f"Demo {k + 1} — {MAPAS[k % len(MAPAS)]}", "modelo": "demo",
+                "jogadores": [a for a, _, _ in exemplo.NOSSOS],
+                "gravacao_inicio": (dia - timedelta(seconds=OFFSET)).isoformat(),
+                "riot_map": {a: r for a, r, _ in exemplo.NOSSOS}}
+        build_outputs(per_player, cfg, out, meta, OFFSET + match["duracao_s"] + 60, match)
+    print(f"{n} análises de exemplo em {saida.resolve()} (abra a aba Evolução)")
+
+
 if __name__ == "__main__":
-    print(f"Relatório de exemplo: {main().resolve()}")
+    if "--historico" in sys.argv:
+        historico()
+    else:
+        print(f"Relatório de exemplo: {main().resolve()}")

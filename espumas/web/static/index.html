@@ -20,10 +20,14 @@
       <p>Revisão da call</p>
     </div>
   </div>
-  <button type="button" class="ghost" id="abrir-config">Configurações</button>
+  <nav class="abas" aria-label="Seções">
+    <button type="button" class="aba" id="aba-analisar" aria-current="page">Analisar</button>
+    <button type="button" class="aba" id="aba-evolucao">Evolução</button>
+    <button type="button" class="ghost" id="abrir-config">Configurações</button>
+  </nav>
 </header>
 
-<main class="layout">
+<main class="layout" id="vista-analisar">
   <section class="nova" aria-labelledby="t-nova">
     <h2 id="t-nova">Nova análise</h2>
 
@@ -100,6 +104,31 @@
   </aside>
 </main>
 
+<main class="evolucao" id="vista-evolucao" hidden>
+  <div class="evo-cabeca">
+    <h2>Evolução</h2>
+    <p id="evo-resumo"></p>
+  </div>
+  <p class="vazio-grande" id="evo-vazio" hidden>Analise pelo menos 2 partidas com dados do jogo para ver a evolução do time.</p>
+  <div id="evo-conteudo">
+    <section aria-labelledby="t-evo-time">
+      <h3 id="t-evo-time">Time</h3>
+      <p class="ajuda">Cada ponto é uma partida, da mais antiga à mais recente. A comparação usa as 3 últimas contra as anteriores.</p>
+      <div class="multiplos" id="evo-time"></div>
+    </section>
+    <section aria-labelledby="t-evo-jog">
+      <h3 id="t-evo-jog">Jogadores</h3>
+      <div class="filtros"><label for="evo-metrica">Métrica</label> <select id="evo-metrica"></select></div>
+      <div class="painel" id="evo-jog-grafico"></div>
+      <div class="tabela-wrap painel"><table class="dados" id="evo-jog-tabela"></table></div>
+    </section>
+    <section aria-labelledby="t-evo-mapas">
+      <h3 id="t-evo-mapas">Mapas</h3>
+      <div class="tabela-wrap painel"><table class="dados" id="evo-mapas"></table></div>
+    </section>
+  </div>
+</main>
+
 <section class="visor" id="visor" hidden aria-label="Relatório">
   <div class="visor-barra">
     <button type="button" class="ghost" id="fechar-visor">Voltar</button>
@@ -141,6 +170,8 @@
   </form>
 </dialog>
 
+<div class="dica-grafico" id="dica" role="status" hidden></div>
 <script src="/static/app.js"></script>
+<script src="/static/evolucao.js"></script>
 </body>
 </html>

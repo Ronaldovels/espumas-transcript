@@ -361,6 +361,12 @@ def create_app(root: str | Path = ".", config_path: str | Path = "config.yaml") 
         falhas = [_tarefa_publica(t) for t in st.tarefas.values() if t["estado"] == "erro"]
         return {"analises": out, "em_andamento": rodando, "falhas": falhas}
 
+    @app.get("/api/evolucao")
+    def evolucao():
+        from ..evolucao import coletar
+
+        return coletar(st.saida)
+
     @app.get("/relatorios/{aid}")
     def relatorio_sem_barra(aid: str):
         # Com a barra no fim, o "audio.webm" relativo do relatório aponta para a pasta certa.

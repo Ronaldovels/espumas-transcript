@@ -215,3 +215,60 @@ dialog .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .passo { padding-left: 34px; margin-left: 14px; }
   .passo::before { left: -15px; width: 28px; height: 28px; font-size: 13px; }
 }
+
+/* ---------- cores dos jogadores (paleta categórica validada) */
+:root { --p1:#2a78d6; --p2:#eb6834; --p3:#1baf7a; --p4:#eda100; --p5:#e87ba4; --p6:#008300; --p7:#6250d6; --p8:#e34948; }
+@media (prefers-color-scheme: dark) {
+  :root { --p1:#3987e5; --p2:#d95926; --p3:#199e70; --p4:#c98500; --p5:#d55181; --p6:#008300; --p7:#9085e9; --p8:#e66767; }
+}
+
+/* ---------- abas */
+.abas { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.aba { background: transparent; color: var(--apagado); box-shadow: none; padding: 9px 14px; }
+.aba:hover { background: var(--espuma-clara); color: var(--tinta); }
+.aba[aria-current=page] { color: var(--tinta); background: var(--espuma-clara); }
+@media (prefers-color-scheme: dark) { .aba { color: var(--apagado); } .aba[aria-current=page], .aba:hover { color: var(--tinta); } }
+@media (max-width: 560px) { .top { flex-wrap: wrap; gap: 10px; } }
+
+/* ---------- evolução */
+.evolucao { max-width: 1240px; margin: 0 auto; padding: 18px 20px 60px; }
+.evolucao[hidden] { display: none; }
+.evo-cabeca h2 { font-size: 26px; font-weight: 800; }
+.evo-cabeca p { color: var(--apagado); margin: 4px 0 0; }
+.evolucao h3 { font-size: 20px; margin: 30px 0 6px; }
+.vazio-grande { background: var(--papel); border-radius: var(--raio-g); padding: 28px; margin-top: 18px; font-size: 17px; }
+.multiplos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.painel, .grafico { background: var(--papel); border-radius: var(--raio-g); padding: 18px; }
+.painel + .painel { margin-top: 14px; }
+.grafico h4 { font: 700 15px var(--titulo); margin: 0; }
+.grafico .tend { font-size: 14px; color: var(--apagado); margin: 2px 0 8px; min-height: 1.5em; }
+.tend b { color: var(--tinta); }
+.selo-t { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; margin-left: 4px; }
+.selo-t.melhorou { background: var(--espuma-clara); color: var(--vitoria); }
+.selo-t.piorou { background: var(--espuma-clara); color: var(--derrota); }
+.selo-t.estavel, .selo-t.igual { background: var(--espuma-clara); color: var(--apagado); }
+.grafico svg, .painel svg { display: block; max-width: 100%; }
+.eixo text { fill: var(--apagado); font-size: 11px; font-family: var(--texto); }
+.eixo line { stroke: var(--linha); stroke-width: 1; }
+.serie { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ponto { stroke: var(--papel); stroke-width: 2; }
+.mira { stroke: var(--apagado); stroke-width: 1; stroke-dasharray: 3 3; }
+.rotulo-serie { font-size: 12px; font-weight: 700; fill: var(--tinta); }
+.legenda { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 10px; font-size: 14px; }
+.legenda span::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--c); margin-right: 6px; vertical-align: middle; }
+.filtros { display: flex; gap: 10px; align-items: center; margin: 4px 0 12px; }
+.filtros label { color: var(--apagado); font-size: 14px; }
+table.dados { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+.dados th { text-align: left; font-size: 13px; color: var(--apagado); font-weight: 700; padding: 0 10px 8px; }
+.dados td { padding: 8px 10px; border-top: 1px solid var(--linha); }
+.dados .n { text-align: right; }
+.dados .cor::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-right: 8px; }
+.dica-grafico {
+  position: fixed; pointer-events: none; z-index: 20; background: var(--tinta); color: var(--papel);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.4; max-width: 260px;
+}
+.dica-grafico b { display: block; font-family: var(--titulo); }
+.dica-grafico .linha-dica::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 6px; }
+
+.layout[hidden] { display: none; }
+.dados .cor { white-space: nowrap; }

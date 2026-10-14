@@ -229,7 +229,13 @@ def normalize_match(raw: dict, riot_id: str | None, buy_s: float = 30.0) -> dict
             "inicio_estimado": estimado,
             "plant": ev(r.get("plant")),
             "defuse": ev(r.get("defuse")),
+            "economia": _economia(r, team),
         })
+
+    lados = infer_sides(rounds, team, (meta.get("queue") or {}).get("id")
+                        or (meta.get("queue") or {}).get("name"))
+    for r, lado in zip(rounds, lados):
+        r["lado"] = lado
 
     jogadores = [{
         "riot": riot_key(p), "puuid": p.get("puuid"), "time": p.get("team_id"),
@@ -253,6 +259,62 @@ def normalize_match(raw: dict, riot_id: str | None, buy_s: float = 30.0) -> dict
             kills, buy_s, [(r.get("plant") or {}).get("round_time_in_ms", 0) / 1000
                            for r in raw_rounds if r.get("plant")]),
     }
+
+
+def _economia(raw_round: dict, team: str | None) -> dict:
+    """Compra de cada jogador do nosso time no round: {riot: {loadout, arma, restante}}."""
+    out = {}
+    for st in raw_round.get("stats") or []:
+        p = st.get("player") or {}
+        if team and p.get("team") != team:
+            continue
+        eco = st.get("economy") or {}
+        out[riot_key(p)] = {
+            "loadout": eco.get("loadout_value"),
+            "arma": (eco.get("weapon") or {}).get("name"),
+            "restante": eco.get("remaining"),
+        }
+    return out
+
+
+def half_length(queue: str | None) -> int:
+    q = (queue or "").lower()
+    if "swift" in q:
+        return 4
+    if "spike" in q:
+        return 3
+    return 12
+
+
+def side_from_first_half(n: int, first: str, half: int) -> str:
+    """Lado no round n (1-based) sabendo o lado do 1º tempo."""
+    outro = "defesa" if first == "ataque" else "ataque"
+    if n <= half:
+        return first
+    if n <= 2 * half:
+        return outro
+    # Prorrogação: troca a cada round, começando pelo lado do 1º tempo.
+    return first if (n - 2 * half - 1) % 2 == 0 else outro
+
+
+def infer_sides(rounds: list[dict], team: str | None, queue: str | None) -> list[str | None]:
+    """A API não diz o lado. Quem planta está atacando: com isso descobre o 1º tempo."""
+    if not team:
+        return [None] * len(rounds)
+    half = half_length(queue)
+    votos = {"ataque": 0, "defesa": 0}
+    for r in rounds:
+        pl = r.get("plant")
+        if not pl or not pl.get("time"):
+            continue
+        lado_nesse = "ataque" if pl["time"] == team else "defesa"
+        for first in ("ataque", "defesa"):
+            if side_from_first_half(r["n"], first, half) == lado_nesse:
+                votos[first] += 1
+    if votos["ataque"] == votos["defesa"]:
+        return [None] * len(rounds)
+    first = max(votos, key=votos.get)
+    return [side_from_first_half(r["n"], first, half) for r in rounds]
 
 
 def match_start_datetime(match: dict) -> datetime | None:

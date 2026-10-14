@@ -34,7 +34,34 @@ def main(out: Path = Path("saida/demo")) -> Path:
         "riot_map": {a: r for a, r, _ in exemplo.NOSSOS},
     }
     duracao = OFFSET + match["duracao_s"] + 60
+    _audio_de_exemplo(per_player, out, duracao)
     return build_outputs(per_player, cfg, out, meta, duracao, match)
+
+
+def _audio_de_exemplo(per_player, out: Path, duracao: float) -> None:
+    """Um tom diferente por jogador em cada fala, para testar o player do relatório."""
+    try:
+        import tempfile
+
+        import numpy as np
+        import soundfile as sf
+
+        from espumas.audio import mix_tracks
+    except ImportError:
+        return
+    sr = 16_000
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = []
+        for i, (p, utts) in enumerate(per_player.items()):
+            x = np.zeros(int(duracao * sr), dtype=np.float32)
+            for u in utts:
+                a, b = int(u.start * sr), int(u.end * sr)
+                t = np.arange(b - a) / sr
+                x[a:b] = 0.2 * np.sin(2 * np.pi * (220 + 70 * i) * t)
+            f = Path(tmp) / f"{i + 1}-{p}.flac"
+            sf.write(f, x, sr)
+            paths.append(str(f))
+        mix_tracks(paths, out)
 
 
 if __name__ == "__main__":

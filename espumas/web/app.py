@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -362,6 +362,13 @@ def create_app(root: str | Path = ".", config_path: str | Path = "config.yaml") 
         return {"analises": out, "em_andamento": rodando, "falhas": falhas}
 
     @app.get("/relatorios/{aid}")
+    def relatorio_sem_barra(aid: str):
+        # Com a barra no fim, o "audio.webm" relativo do relatório aponta para a pasta certa.
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+", aid):
+            raise HTTPException(404)
+        return RedirectResponse(f"/relatorios/{aid}/")
+
+    @app.get("/relatorios/{aid}/")
     def relatorio(aid: str):
         if not re.fullmatch(r"[A-Za-z0-9_.-]+", aid):
             raise HTTPException(404)
@@ -372,12 +379,15 @@ def create_app(root: str | Path = ".", config_path: str | Path = "config.yaml") 
 
     @app.get("/relatorios/{aid}/{arquivo}")
     def arquivo_relatorio(aid: str, arquivo: str):
-        permitido = {"transcricao.txt", "transcricao.srt", "analise.json", "relatorio.html"}
+        permitido = {"transcricao.txt", "transcricao.srt", "analise.json", "relatorio.html",
+                     "audio.webm", "audio.m4a"}
         if arquivo not in permitido or not re.fullmatch(r"[A-Za-z0-9_.-]+", aid):
             raise HTTPException(404)
         f = st.saida / aid / arquivo
         if not f.exists():
             raise HTTPException(404)
+        if arquivo.startswith("audio."):
+            return FileResponse(f)  # sem "download": o navegador toca e pula no tempo
         return FileResponse(f, filename=arquivo if arquivo != "relatorio.html" else None)
 
     return app

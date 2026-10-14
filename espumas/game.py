@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
 import statistics
 
+from .metrics import site_mentions
 from .models import Utterance
 
 ROUND_S = 100.0  # duração do round após a barreira
@@ -164,8 +166,154 @@ def compute_game_metrics(timeline: list[Utterance], match: dict, sync: dict,
         "contexto_falas": contexto,
         "jogadores_sem_riot": sorted({u.player for u in timeline} - mapped),
     }
+    our_roster = [p["riot"] for p in match.get("jogadores") or [] if p.get("time") == our_team]
+    res["clutches"] = clutches(timeline, match, wins, offset, riot_map, our_roster)
+    res["call_execucao"] = call_x_execucao(timeline, match, wins)
+    res["compras"] = compras(timeline, match, wins)
     res["destaques"] = game_insights(res)
     return res
+
+
+# ------------------------------------------------------------------ clutch
+
+def clutches(timeline: list[Utterance], match: dict, wins: list[dict], offset: float,
+             riot_map: dict[str, str], roster: list[str]) -> list[dict]:
+    """Momentos com um só vivo do nosso time: quanto os outros falaram (e por cima dele)."""
+    our_team = match.get("nosso_time")
+    riot_to_player = {v.lower(): k for k, v in riot_map.items() if v}
+    out = []
+    for w in wins:
+        ks = [k for k in match.get("kills") or [] if k["round"] == w["n"]]
+        mortos, inimigos_mortos = [], 0
+        inicio = None
+        for k in ks:
+            if k.get("vitima_time") == our_team:
+                mortos.append(k["vitima"])
+            else:
+                inimigos_mortos += 1
+            if len(mortos) == len(roster) - 1 and inimigos_mortos < 5 and inicio is None:
+                inicio = k["t_s"] + offset
+                contra = 5 - inimigos_mortos
+                break
+        if inicio is None or len(roster) < 2 or w["fim"] - inicio < 1.0:
+            continue
+        vivo_riot = next((r for r in roster if r not in mortos), None)
+        vivo = riot_to_player.get((vivo_riot or "").lower())
+        fim = max(w["fim"], inicio)
+        outros = [u for u in timeline if u.player != vivo and u.end > inicio and u.start < fim]
+        fala_outros = sum(min(u.end, fim) - max(u.start, inicio) for u in outros)
+        dele = [u for u in timeline if u.player == vivo and u.end > inicio and u.start < fim]
+        por_cima = sum(1 for o in outros if any(o.start < d.end and o.end > d.start for d in dele))
+        out.append({
+            "round": w["n"], "t": round(inicio, 2), "duracao_s": round(fim - inicio, 1),
+            "jogador": vivo, "riot": vivo_riot, "contra": contra, "ganhamos": w["ganhamos"],
+            "fala_outros_s": round(fala_outros, 1), "falas_outros": len(outros),
+            "por_cima_dele": por_cima,
+            "silencio_ok": fala_outros < 1.5 and por_cima == 0,
+        })
+    return out
+
+
+# ------------------------------------------------------------------ call x execução
+
+_CALL_RE = re.compile(r"(?<!\w)(vamo|vamos|bora|vai|vão|execute|exec|executa|rush|fake|entra|"
+                      r"plant[ao]|roda|gira|rotate|joga)(?!\w)", re.IGNORECASE)
+
+
+def call_x_execucao(timeline: list[Utterance], match: dict, wins: list[dict]) -> list[dict]:
+    """Nos rounds de ataque: o site chamado bate com onde a spike foi plantada?"""
+    rounds = {r["n"]: r for r in match.get("rounds") or []}
+    out = []
+    for i, w in enumerate(wins):
+        r = rounds.get(w["n"], {})
+        if r.get("lado") != "ataque":
+            continue
+        ini = wins[i - 1]["fim"] if i > 0 else w["buy"] - 20
+        plant = r.get("plant") if (r.get("plant") or {}).get("time") == match.get("nosso_time") else None
+        ate = w["plant"] if plant and w.get("plant") is not None else w["fim"]
+        calls = []
+        for u in timeline:
+            if ini <= u.start <= ate and _CALL_RE.search(u.text):
+                for site in site_mentions(u.text):
+                    calls.append({"t": round(u.start, 2), "jogador": u.player, "site": site,
+                                  "texto": u.text})
+        distintos = list(dict.fromkeys(c["site"] for c in calls))
+        final = calls[-1]["site"] if calls else None
+        site_plant = plant.get("site") if plant else None
+        if not calls:
+            status = "sem call"
+        elif not site_plant:
+            status = "sem plant"
+        elif site_plant == final:
+            status = "seguiu a call" if len(distintos) == 1 else "mudou a call e seguiu"
+        else:
+            status = "plantou em outro site"
+        out.append({"round": w["n"], "ganhamos": w["ganhamos"], "calls": calls,
+                    "call_inicial": calls[0]["site"] if calls else None, "call_final": final,
+                    "site_plant": site_plant, "status": status})
+    return out
+
+
+# ------------------------------------------------------------------ compras
+
+ECO_MAX = 1600  # loadout abaixo disso = economizando
+FULL_MIN = 3500  # loadout a partir disso = compra completa
+
+_COMPRA_RE = [
+    ("forca", re.compile(r"(?<!\w)(for[cç]a|for[cç]ar|forçando|force|forcing)(?!\w)", re.I)),
+    ("eco", re.compile(r"(?<!\w)(eco|salva|salvar|save|economiza)(?!\w)", re.I)),
+    ("full", re.compile(r"(?<!\w)(full|compra tudo|full buy|compra completa)(?!\w)", re.I)),
+]
+
+
+def classe_compra(loadout: int | None) -> str | None:
+    if loadout is None:
+        return None
+    if loadout < ECO_MAX:
+        return "eco"
+    if loadout >= FULL_MIN:
+        return "full"
+    return "meio"
+
+
+def _pistol_rounds(match: dict) -> set[int]:
+    from .riot import half_length
+
+    half = half_length(match.get("modo"))
+    return {1, half + 1}
+
+
+def compras(timeline: list[Utterance], match: dict, wins: list[dict]) -> list[dict]:
+    """O que foi combinado na compra x o que cada um comprou de verdade."""
+    rounds = {r["n"]: r for r in match.get("rounds") or []}
+    pistols = _pistol_rounds(match)
+    out = []
+    for i, w in enumerate(wins):
+        r = rounds.get(w["n"], {})
+        eco = r.get("economia") or {}
+        if not eco or w["n"] in pistols:
+            continue
+        classes = {riot: classe_compra(v.get("loadout")) for riot, v in eco.items()}
+        cont = {c: sum(1 for x in classes.values() if x == c) for c in ("full", "meio", "eco")}
+        ini = wins[i - 1]["fim"] if i > 0 else w["buy"]
+        call = None
+        for u in timeline:
+            if ini <= u.start < w["barreira"]:
+                tipos = [nome for nome, rx in _COMPRA_RE if rx.search(u.text)]
+                # "força ou salva?" é pergunta, não combinado: ignora falas ambíguas.
+                if len(tipos) == 1:
+                    call = {"tipo": tipos[0], "jogador": u.player, "texto": u.text,
+                            "t": round(u.start, 2)}
+        dividida = cont["eco"] >= 2 and cont["full"] >= 2
+        maioria = max(cont, key=cont.get)
+        seguiu = None
+        if call:
+            alvo = {"forca": ("meio", "full"), "eco": ("eco",), "full": ("full",)}[call["tipo"]]
+            seguiu = sum(cont[a] for a in alvo) >= 4
+        out.append({"round": w["n"], "ganhamos": w["ganhamos"], "contagem": cont,
+                    "maioria": maioria, "dividida": dividida, "call": call, "seguiu": seguiu,
+                    "jogadores": {riot: {"classe": classes[riot], **v} for riot, v in eco.items()}})
+    return out
 
 
 def game_insights(g: dict) -> list[str]:
@@ -188,6 +336,25 @@ def game_insights(g: dict) -> list[str]:
     buy = g["fala_por_fase_pct"].get("buy", 0)
     if buy >= 45:
         out.append(f"{buy}% da fala aconteceu na fase de compra — o round ativo ficou mais limpo.")
+    cl = g.get("clutches") or []
+    if cl:
+        barulho = [c for c in cl if not c["silencio_ok"]]
+        if barulho:
+            out.append(f"Em {len(barulho)} de {len(cl)} clutches o time falou enquanto um jogava "
+                       f"sozinho (média de {statistics.mean(c['fala_outros_s'] for c in barulho):.1f}s).")
+        else:
+            out.append(f"Nos {len(cl)} clutches o time ficou em silêncio. Boa.")
+    ce = [c for c in g.get("call_execucao") or [] if c["status"] in
+          ("seguiu a call", "mudou a call e seguiu", "plantou em outro site")]
+    outro = [c for c in ce if c["status"] == "plantou em outro site"]
+    if outro:
+        out.append(f"Em {len(outro)} de {len(ce)} rounds de ataque com call e plant, a spike foi "
+                   "plantada em outro site.")
+    div = [c for c in g.get("compras") or [] if c["dividida"]]
+    if div:
+        perdidos = sum(1 for c in div if c["ganhamos"] is False)
+        out.append(f"{len(div)} round(s) com compra dividida (parte comprou, parte salvou); "
+                   f"{perdidos} perdido(s).")
     if g["jogadores_sem_riot"]:
         out.append("Sem ligação com a conta da Riot (fala de morto não calculada): "
                    + ", ".join(g["jogadores_sem_riot"]) + ".")

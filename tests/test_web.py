@@ -115,6 +115,11 @@ def test_fluxo_completo(client, craig_zip):
     page = c.get(f"/relatorios/{a['id']}")
     assert page.status_code == 200 and "Rounds" in page.text and "Kaio" in page.text
     assert c.get(f"/relatorios/{a['id']}/transcricao.srt").status_code == 200
+    # Áudio para ouvir no relatório: link relativo resolve dentro da pasta da análise
+    assert 'id="player"' in page.text and 'src="audio.webm"' in page.text
+    assert str(page.url).endswith(f"/relatorios/{a['id']}/")
+    au = c.get(f"/relatorios/{a['id']}/audio.webm", headers={"Range": "bytes=0-99"})
+    assert au.status_code == 206 and len(au.content) == 100
     assert c.get(f"/relatorios/{a['id']}/../config.yaml").status_code == 404
 
     # Apelidos e contas ficaram salvos para a próxima vez

@@ -23,8 +23,13 @@ A transcrição roda **100% local** na GPU (faster-whisper + Whisper large-v3-tu
 | **Por round** | Resultado, kills, mortes, fala no round, interrupções e fala de morto de cada round. |
 | **Ganhos x perdidos** | Média dessas métricas em rounds ganhos contra perdidos. |
 | **Quando a call falou** | % da fala na compra, no round ativo e no fim de round. |
+| **Clutches** | Quando sobra um só vivo: quanto os outros falaram e quantas vezes por cima dele. |
+| **Call x execução** | Nos rounds de ataque, o site chamado em ordens ("vamo B", "roda pro A") bate com onde a spike foi plantada? |
+| **Compras** | O que foi combinado na compra ("bora forçar", "eco") x quanto cada um levou para o round; aponta compra dividida (parte comprou, parte salvou). |
 | **Falas longas** | Fala ≥ 6 s ou ≥ 18 palavras. |
 | **Ordens conflitantes** | Comandos de jogadores diferentes em até 3 s, destacando sites diferentes ("roda pro B" x "vai pro A"). |
+
+**Ouvir o momento:** o relatório traz o áudio da call (todas as faixas misturadas, ~8 MB por partida). Clique em qualquer fala, interrupção, clutch ou barra da linha do tempo e ele toca aquele trecho; a fala que está tocando fica destacada na transcrição.
 
 A linha do tempo mostra uma linha por round, com compra em cinza, kills (▲) e mortes (▼) do time, plant/defuse e as falas de cada um.
 
@@ -134,13 +139,17 @@ correcoes:          # erros que se repetem na sua call
 - As métricas são automáticas: **ponto de partida para revisar a call**, não veredito. Uma interrupção pode ser um callout urgente e correto; fala de morto pode ser info útil.
 - A HenrikDev API é não oficial: pode mudar ou ficar fora do ar.
 - O fim de cada round é estimado (última kill, defuse ou spike explodindo).
+- O lado (ataque/defesa) vem de quem plantou; partida sem nenhum plant fica sem "call x execução".
+- Citação de site é detectada por padrões de texto ("vamo B", "roda pro A"); "a" minúsculo só conta em contexto claro ("site a", "execute a"), porque é artigo.
 - Formato da API conferido com uma partida real (out/2026): o tempo no round conta a partir da barreira. O alinhamento com uma call real ainda precisa do primeiro teste.
 
 ## Próximos passos
 
 - [ ] **Tom de voz**: emoção pelo áudio (emotion2vec) + leitura do texto por um LLM local (tilt, crítica, irritação).
-- [ ] Classificar cada fala: callout, estratégia, conversa paralela, reclamação.
 - [ ] Comparar partidas (evolução do time ao longo do tempo).
+- [ ] Clipes: exportar os piores momentos como áudios curtos.
+- [ ] Tempo de reação da info depois de morrer e conteúdo da fala (posição, vida) x reclamação.
+- [ ] Resumo da partida por um LLM local.
 
 ## Desenvolvimento
 

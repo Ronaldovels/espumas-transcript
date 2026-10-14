@@ -42,6 +42,8 @@ DEFAULTS: dict = {
         "max_no_speech_prob": 0.6,
         "min_avg_logprob": -1.0,
     },
+    # Gera audio.webm (todas as faixas misturadas) para ouvir trechos no relatório.
+    "audio_relatorio": True,
     # Termos extras somados ao glossário de Valorant embutido.
     "vocabulario": [],
     # Correções forçadas: "texto errado" -> "texto certo" (sem diferenciar maiúsculas).

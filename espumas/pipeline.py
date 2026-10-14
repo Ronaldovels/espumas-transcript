@@ -10,7 +10,7 @@ from typing import Callable
 
 from rapidfuzz import fuzz
 
-from . import export, report, timeline as tl, vocab
+from . import audio as audio_mod, export, report, timeline as tl, vocab
 from .config import player_riot
 from .game import compute_game_metrics
 from .metrics import compute_metrics
@@ -131,6 +131,13 @@ def analyze(source: str | Path, out_dir: str | Path, cfg: dict, nome: str | None
         duracao = max(duracao, _audio_duration(track.path) or 0.0)
         log(f"    {len(per_player[track.player])} falas em {time.time() - t0:.0f}s")
 
+    if cfg.get("audio_relatorio", True):
+        prog(0.93, "Preparando o áudio para ouvir no relatório")
+        try:
+            audio_mod.mix_tracks([t.path for t in tracks], out)
+        except Exception as e:  # noqa: BLE001 — o áudio é um extra; não derruba a análise
+            log(f"Não consegui gerar o áudio do relatório: {e}")
+
     discord = {t.player: t.discord for t in tracks}
     if match is not None and riot_map is None:
         riot_map = guess_riot_map(discord, match, cfg["jogadores"])
@@ -172,7 +179,8 @@ def build_outputs(per_player: dict, cfg: dict, out: Path, meta: dict,
     export.write_txt(timeline, out / "transcricao.txt")
     export.write_srt(timeline, out / "transcricao.srt")
     export.write_json(timeline, metrics, meta, out / "analise.json", extra)
-    report.render_report(timeline, metrics, meta, out / "relatorio.html", **extra)
+    report.render_report(timeline, metrics, meta, out / "relatorio.html",
+                         audio=audio_mod.existing_audio(out), **extra)
     return out / "relatorio.html"
 
 

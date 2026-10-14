@@ -312,10 +312,10 @@ async function acompanhar() {
 function abrirRelatorio(a) {
   $("#visor-titulo").textContent = a.nome;
   const base = `/relatorios/${encodeURIComponent(a.id)}`;
-  $("#visor-frame").src = base;
+  $("#visor-frame").src = base + "/";
   $("#visor-downloads").innerHTML =
     `<a href="${base}/transcricao.txt">Transcrição</a><a href="${base}/transcricao.srt">Legenda</a>` +
-    `<a href="${base}/analise.json">Dados</a><a href="${base}" target="_blank" rel="noopener">Abrir em nova aba</a>`;
+    `<a href="${base}/analise.json">Dados</a><a href="${base}/" target="_blank" rel="noopener">Abrir em nova aba</a>`;
   $("#visor").hidden = false;
   $("#fechar-visor").focus();
 }

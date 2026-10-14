@@ -33,6 +33,7 @@ def raw_match(n_rounds: int = 12, t0: str = "buy", seed: int = 3) -> dict:
                  "agent": {"name": a}, "stats": {}} for r, a in DELES]
     rounds, kills = [], []
     placar = {"Blue": 0, "Red": 0}
+    rnd_eco = random.Random(seed + 100)  # separado para não mudar o resto da partida
     for i in range(n_rounds):
         buy_start = 45.0 + i * INTERVALO_S  # no relógio da partida
         barreira = buy_start + BUY_S
@@ -63,7 +64,8 @@ def raw_match(n_rounds: int = 12, t0: str = "buy", seed: int = 3) -> dict:
             plant = {"round_time_in_ms": int((barreira + 40 - zero) * 1000),
                      "site": rnd.choice("AB"), "player": _p(NOSSOS[0][1], "Blue")}
         rounds.append({"id": i, "result": "Elimination", "winning_team": vencedor,
-                       "plant": plant, "defuse": None})
+                       "plant": plant, "defuse": None,
+                       "stats": _stats_economia(i, rnd_eco)})
     return {
         "metadata": {"match_id": "demo-0001", "map": {"name": "Ascent"},
                      "queue": {"name": "Competitive"},
@@ -77,6 +79,34 @@ def raw_match(n_rounds: int = 12, t0: str = "buy", seed: int = 3) -> dict:
         "rounds": rounds,
         "kills": kills,
     }
+
+
+COMPRAS = {  # padrão de compra do nosso time -> loadout de cada um
+    "pistol": [800] * 5,
+    "full": [3900, 4700, 3900, 4200, 3900],
+    "eco": [400, 800, 0, 1200, 600],
+    "forca": [2400, 2900, 2050, 2600, 2300],
+    "dividida": [3900, 4700, 800, 400, 3900],
+}
+
+
+def padrao_compra(i: int) -> str:
+    """Padrão de compra do round i (0-based) usado pela partida de exemplo."""
+    if i == 0:
+        return "pistol"
+    return ["full", "eco", "dividida", "full", "forca", "full", "dividida", "full",
+            "eco", "full", "full"][(i - 1) % 11]
+
+
+def _stats_economia(i: int, rnd: random.Random) -> list[dict]:
+    valores = COMPRAS[padrao_compra(i)]
+    out = []
+    for (_, r, _), v in zip(NOSSOS, valores):
+        arma = "Vandal" if v >= 3900 else "Spectre" if v >= 2000 else "Classic"
+        out.append({"player": _p(r, "Blue"),
+                    "economy": {"loadout_value": v, "remaining": rnd.randint(0, 3000),
+                                "weapon": {"name": arma}, "armor": None}})
+    return out
 
 
 FRASES = {
@@ -131,12 +161,28 @@ def call_sintetica(raw: dict, offset: float, seed: int = 5,
         if vit and rnd.random() < 0.85:  # quem morre geralmente fala logo depois
             add(vit, k["time_in_match_in_ms"] / 1000 + offset + rnd.uniform(0.4, 1.6),
                 rnd.choice(FRASES["morto"]))
+    # Call de site na compra (às vezes a execução muda) e call de compra
+    rnd2 = random.Random(seed + 7)
+    falas_compra = {"full": "full buy galera", "eco": "eco esse round", "forca": "bora forçar",
+                    "dividida": "força ou salva"}
+    for i, r in enumerate(raw["rounds"]):
+        buy = 45.0 + i * INTERVALO_S + offset
+        pl = r.get("plant")
+        site = (pl or {}).get("site") or rnd2.choice("AB")
+        if rnd2.random() < 0.3:
+            site = "B" if site == "A" else "A"
+        add("Ronaldo", buy + 3, f"vamo de execute no {site}")
+        pc = padrao_compra(i)
+        if pc in falas_compra:
+            add("Bia", buy + 9, falas_compra[pc])
     # Repetições da palavra no meio da partida (devem ser ignoradas)
     add("Léo", 5 * INTERVALO_S + offset, "vamo espumas")
     add("Bia", 9 * INTERVALO_S + offset + 20, "espumas espumas")
     # Uma pessoa não fala duas coisas ao mesmo tempo: descarta o que se sobrepõe.
     # As falas "importantes" (âncora e pós-morte) têm prioridade.
-    prioridade = set(FRASES["morto"]) | {"espumas"}
+    prioridade = set(FRASES["morto"]) | {"espumas", "vamo de execute no A",
+                                         "vamo de execute no B", "full buy galera",
+                                         "eco esse round", "bora forçar", "força ou salva"}
     for p in per:
         utts = sorted(per[p], key=lambda u: (u.text not in prioridade, u.start))
         aceitas: list[Utterance] = []

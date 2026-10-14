@@ -18,9 +18,19 @@ _ORDENS = [
 _ORDENS_RE = re.compile(r"(?<!\w)(" + "|".join(map(re.escape, _ORDENS)) + r")(?!\w)",
                         re.IGNORECASE)
 # "vai pro B", "rotate A", "roda pra C", "site A" — letra do site em maiúscula.
-_SITE_RE = re.compile(
-    r"(?:(?<!\w)(?:pro|pra|para o|no|na|site|bomb|rotate|roda|gira|vai|entra)\s+)([ABC])(?!\w)"
-)
+# Menções a site. "a" minúsculo é artigo em português, então só conta depois de palavras
+# que deixam claro que é site; "B"/"C" são bem menos ambíguos.
+_KW = (r"pro|pra|para o|no|na|site|bomb|rotate|roda|gira|vai|entra|rush|execute|exec|fake|de|"
+       r"vamo|vamos|bora|joga")
+_KW_A = r"site|bomb|rush|execute|exec|fake|pro|rotate"
+_CALLOUT = r"main|site|long|short|lobby|heaven|hell|link|hall|elbow|default|ct"
+_SITE_PATTERNS = [
+    re.compile(rf"(?<!\w)(?:{_KW})\s+([ABC])(?!\w)"),  # "vai pro B", "vamo de A"
+    re.compile(rf"(?<!\w)(?:{_KW})\s+([bc])(?!\w)"),  # "vamo de b"
+    re.compile(rf"(?<!\w)(?:{_KW_A})\s+(a)(?!\w)"),  # "execute a", "site a"
+    re.compile(rf"(?<!\w)([ABCabc])\s+(?:{_CALLOUT})(?!\w)", re.IGNORECASE),  # "B main"
+    re.compile(r"(?<![\w-])([BC])(?![\w-])"),  # "B" sozinho, maiúsculo
+]
 
 SIMULTANEO_S = 0.3  # começaram a falar juntos (ninguém "cortou" ninguém)
 
@@ -106,8 +116,17 @@ def has_order(text: str) -> bool:
     return bool(_ORDENS_RE.search(text))
 
 
+def site_mentions(text: str) -> list[str]:
+    """Sites citados, na ordem em que aparecem ("roda do A pro B" -> ["A", "B"])."""
+    achados: dict[int, str] = {}
+    for pat in _SITE_PATTERNS:
+        for m in pat.finditer(text):
+            achados.setdefault(m.start(1), m.group(1).upper())
+    return [achados[k] for k in sorted(achados)]
+
+
 def sites_in(text: str) -> set[str]:
-    return set(_SITE_RE.findall(text))
+    return set(site_mentions(text))
 
 
 def find_conflicting_orders(timeline: list[Utterance], cfg: dict) -> list[dict]:

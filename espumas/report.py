@@ -79,6 +79,13 @@ text-transform:uppercase;letter-spacing:.04em}
 @media (max-width:600px){.tr{grid-template-columns:44px 1fr}.tr .p{grid-column:2}
 .tr .x{grid-column:1/-1}}
 .muted{color:var(--muted)}
+.player{position:fixed;left:0;right:0;bottom:0;display:flex;gap:12px;align-items:center;
+flex-wrap:wrap;padding:10px 16px;background:var(--card);border-top:1px solid var(--line);z-index:5}
+.player audio{flex:1 1 320px;max-width:640px}.player .muted{font-size:13px}
+body.com-audio main{padding-bottom:120px}
+body.com-audio [data-t]{cursor:pointer}
+body.com-audio tr[data-t]:hover,body.com-audio .tr:hover{background:var(--buy)}
+.tr.agora{box-shadow:inset 3px 0 0 var(--warn);background:var(--buy)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
 dl.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}
 dl.kv dt{color:var(--muted)}dl.kv dd{margin:0}
@@ -94,6 +101,26 @@ btns.forEach(b=>b.addEventListener('click',()=>{
 }));
 const only=document.getElementById('only-hits');
 if(only)only.addEventListener('change',()=>document.body.classList.toggle('hits-only',only.checked));
+"""
+
+
+JS_AUDIO = """
+const player=document.getElementById('player');
+document.body.classList.add('com-audio');
+function tocar(t){player.currentTime=Math.max(0,t-1.0);player.play().catch(()=>{});}
+document.addEventListener('click',e=>{
+  if(e.target.closest('button,input,label,a,audio'))return;
+  const el=e.target.closest('[data-t]');
+  if(el)tocar(parseFloat(el.dataset.t));
+});
+const linhas=[...document.querySelectorAll('.tr[data-t]')];
+let atual=null;
+player.addEventListener('timeupdate',()=>{
+  const t=player.currentTime;let lo=0,hi=linhas.length-1,k=-1;
+  while(lo<=hi){const m=(lo+hi)>>1;if(parseFloat(linhas[m].dataset.t)<=t){k=m;lo=m+1}else hi=m-1}
+  const el=k>=0?linhas[k]:null;
+  if(el!==atual){if(atual)atual.classList.remove('agora');if(el)el.classList.add('agora');atual=el;}
+});
 """
 
 
@@ -181,7 +208,7 @@ def _timeline_svg(timeline, players, colors, overlaps, t0, t1, scale_s, jogo=Non
             extra = ' opacity=".45" stroke="var(--bad)" stroke-width="1.2"' if morto else ""
             dica = " (morto)" if morto else ""
             parts.append(
-                f'<rect x="{x:.1f}" y="{y}" width="{w:.1f}" height="{lane_h}" rx="2" '
+                f'<rect x="{x:.1f}" y="{y}" width="{w:.1f}" height="{lane_h}" rx="2" data-t="{u.start:.2f}" '
                 f'fill="{colors[p]}"{extra}><title>{_e(p)}{dica} {fmt_clock(u.start)}: '
                 f'{_e(u.text)}</title></rect>')
     parts.append("</svg>")
@@ -204,6 +231,92 @@ def _timeline_rows(dur: float, jogo: dict | None) -> list[tuple[float, float, st
         fim = wins[i + 1]["buy"] if i + 1 < len(wins) else min(dur, w["fim"] + 15)
         rows.append((w["buy"], max(fim, w["buy"] + 1), f'<b>R{w["n"]}</b><br>{fmt_clock(w["buy"])}'))
     return rows
+
+
+_STATUS_CALL = {
+    "seguiu a call": ("W", "Seguiu a call"),
+    "mudou a call e seguiu": ("W", "Mudou a call e seguiu"),
+    "plantou em outro site": ("L", "Plantou em outro site"),
+    "sem plant": ("fase", "Sem plant"),
+    "sem call": ("fase", "Sem call de site"),
+}
+_COMPRA_LABEL = {"forca": "forçar", "eco": "salvar", "full": "comprar tudo"}
+
+
+def _analises_jogo(jogo: dict, colors: dict, riot_map: dict) -> str:
+    h: list[str] = []
+    riot_to_player = {v.lower(): k for k, v in riot_map.items() if v}
+
+    cl = jogo.get("clutches") or []
+    h.append(f'<h2>Clutches ({len(cl)})</h2>')
+    if cl:
+        h.append('<div class="card scroll"><p class="muted" style="margin:0 0 8px;font-size:13px">'
+                 'Quando sobra um só vivo, o ideal é a call ficar quieta para ele ouvir o jogo.</p>'
+                 '<table><thead><tr><th>Round</th><th>Quem</th><th>Situação</th>'
+                 '<th class="n">Duração</th><th class="n">Outros falaram</th>'
+                 '<th class="n">Por cima dele</th><th>Resultado</th></tr></thead><tbody>')
+        for c in cl:
+            quem = _chip(c["jogador"], colors) if c["jogador"] else _e(c["riot"] or "?")
+            fala = ('<span class="tag W">silêncio</span>' if c["silencio_ok"] else
+                    f'{c["fala_outros_s"]}s · {c["falas_outros"]} fala{"s" if c["falas_outros"] != 1 else ""}')
+            h.append(f'<tr data-t="{c["t"]}"><td>R{c["round"]} · {fmt_clock(c["t"])}</td>'
+                     f'<td>{quem}</td><td>1v{c["contra"]}</td><td class="n">{c["duracao_s"]}s</td>'
+                     f'<td class="n">{fala}</td><td class="n">{c["por_cima_dele"]}</td>'
+                     f'<td>{_wl(c["ganhamos"])}</td></tr>')
+        h.append("</tbody></table></div>")
+    else:
+        h.append('<p class="muted">Nenhum round terminou com um só vivo do time.</p>')
+
+    ce = jogo.get("call_execucao") or []
+    if ce:
+        h.append(f'<h2>Call x execução ({len(ce)} rounds de ataque)</h2>'
+                 '<div class="card scroll"><p class="muted" style="margin:0 0 8px;font-size:13px">'
+                 'Sites citados em ordens ("vamo B", "roda pro A") desde o fim do round anterior '
+                 'até o plant, comparados com onde a spike foi plantada.</p><table><thead><tr>'
+                 '<th>Round</th><th>Calls</th><th>Plant</th><th>Execução</th><th>Resultado</th>'
+                 '</tr></thead><tbody>')
+        for c in ce:
+            seq = " → ".join(f'<b>{_e(x["site"])}</b>' for x in c["calls"][-6:]) or '<span class="muted">—</span>'
+            if len(c["calls"]) > 6:
+                seq = "… → " + seq
+            t0 = c["calls"][-1]["t"] if c["calls"] else None
+            cls, label = _STATUS_CALL[c["status"]]
+            dt = f' data-t="{t0}"' if t0 is not None else ""
+            h.append(f'<tr{dt}><td>R{c["round"]}</td><td>{seq}</td>'
+                     f'<td>{_e(c["site_plant"] or "—")}</td><td><span class="tag {cls}">{label}'
+                     f'</span></td><td>{_wl(c["ganhamos"])}</td></tr>')
+        h.append("</tbody></table></div>")
+
+    cp = jogo.get("compras") or []
+    if cp:
+        h.append(f'<h2>Compras ({len(cp)} rounds)</h2><div class="card scroll">'
+                 '<p class="muted" style="margin:0 0 8px;font-size:13px">O que foi falado na compra '
+                 'x quanto cada um levou para o round (full ≥ 3500, eco &lt; 1600). Rounds de pistol '
+                 'ficam de fora.</p><table><thead><tr><th>Round</th><th>Combinado</th>'
+                 '<th>Comprado</th><th></th><th>Resultado</th></tr></thead><tbody>')
+        for c in cp:
+            call = c["call"]
+            comb = (f'{_COMPRA_LABEL[call["tipo"]]}<div class="muted" style="font-size:12px">'
+                    f'{_e(call["jogador"])}: “{_e(call["texto"])}”</div>' if call
+                    else '<span class="muted">nada falado</span>')
+            n = c["contagem"]
+            partes = [f'{n[k]} {k}' for k in ("full", "meio", "eco") if n[k]]
+            jog = " ".join(
+                f'<span title="{_e(r)}: {v.get("loadout")} ({_e(v.get("arma") or "")})">'
+                f'{_chip(riot_to_player.get(r.lower(), r.split("#")[0]), colors)}</span>'
+                for r, v in c["jogadores"].items() if v.get("classe") == "eco") if c["dividida"] else ""
+            if c["dividida"]:
+                flag = '<span class="tag L">Dividida</span>'
+            elif c["seguiu"] is False:
+                flag = '<span class="tag simultaneo">Diferente do combinado</span>'
+            else:
+                flag = ""
+            dt = f' data-t="{call["t"]}"' if call else ""
+            h.append(f'<tr{dt}><td>R{c["round"]}</td><td>{comb}</td><td>{", ".join(partes)}'
+                     f'{"<div style=margin-top:4px>salvaram: " + jog + "</div>" if jog else ""}</td>'
+                     f'<td>{flag}</td><td>{_wl(c["ganhamos"])}</td></tr>')
+        h.append("</tbody></table></div>")
+    return "".join(h)
 
 
 def _sync_card(sinc: dict, partida: dict) -> str:
@@ -239,7 +352,7 @@ def _sync_card(sinc: dict, partida: dict) -> str:
 
 def render_report(timeline: list[Utterance], metrics: dict, meta: dict, path: Path,
                   partida: dict | None = None, sinc: dict | None = None,
-                  jogo: dict | None = None) -> None:
+                  jogo: dict | None = None, audio: str | None = None, **_extra) -> None:
     players = list(metrics["jogadores"].keys())
     colors = {p: CORES[i % len(CORES)] for i, p in enumerate(players)}
     r = metrics["resumo"]
@@ -357,6 +470,9 @@ def render_report(timeline: list[Utterance], metrics: dict, meta: dict, path: Pa
                      f'<td class="n">{rr["interrupcoes"]}</td><td class="n">{rr["fala_morto_s"]}s</td></tr>')
         h.append("</tbody></table></div>")
 
+    if jogo:
+        h.append(_analises_jogo(jogo, colors, meta.get("riot_map") or {}))
+
     if sinc:
         h.append(_sync_card(sinc, partida or {}))
 
@@ -388,7 +504,7 @@ def render_report(timeline: list[Utterance], metrics: dict, meta: dict, path: Pa
                  '<th>Quando</th><th>Jogador</th><th>Fala</th><th>Por cima de</th></tr></thead><tbody>')
         for ev in evs:
             sobre = " ".join(_chip(p, colors) for p in ev["por_cima_de"]) or '<span class="muted">—</span>'
-            h.append(f'<tr><td>R{ev["round"]} · {fmt_clock(ev["t"])}</td><td>{_chip(ev["jogador"], colors)}'
+            h.append(f'<tr data-t="{ev["t"]}"><td>R{ev["round"]} · {fmt_clock(ev["t"])}</td><td>{_chip(ev["jogador"], colors)}'
                      f'</td><td>{_e(ev["texto"])}</td><td>{sobre}</td></tr>')
         h.append("</tbody></table></div>")
 
@@ -400,7 +516,7 @@ def render_report(timeline: list[Utterance], metrics: dict, meta: dict, path: Pa
                  '<th>Quem falava</th><th>Quem entrou</th></tr></thead><tbody>')
         for e in sig:
             h.append(
-                f'<tr><td>{fmt_clock(e["start"])}<div class="muted" style="font-size:12px">'
+                f'<tr data-t="{e["start"]}"><td>{fmt_clock(e["start"])}<div class="muted" style="font-size:12px">'
                 f'{e["duration"]}s</div></td><td><span class="tag {e["tipo"]}">'
                 f'{_TIPO_LABEL[e["tipo"]]}</span></td>'
                 f'<td>{_chip(e["primeiro"], colors)}<div>{_e(e["texto_primeiro"])}</div></td>'
@@ -417,7 +533,7 @@ def render_report(timeline: list[Utterance], metrics: dict, meta: dict, path: Pa
             flag = ' <span class="tag interrupcao">sites diferentes</span>' if o["conflito_site"] else ""
             linhas = "".join(f'<div>{_chip(j, colors)} {_e(tx)}</div>'
                              for j, tx in zip(o["jogadores"], o["textos"]))
-            h.append(f'<tr><td>{fmt_clock(o["start"])}{flag}</td><td>{linhas}</td></tr>')
+            h.append(f'<tr data-t="{o["start"]}"><td>{fmt_clock(o["start"])}{flag}</td><td>{linhas}</td></tr>')
         h.append("</tbody></table></div>")
 
     longos = metrics["callouts_longos"]
@@ -426,7 +542,7 @@ def render_report(timeline: list[Utterance], metrics: dict, meta: dict, path: Pa
                  '<tr><th>Quando</th><th>Jogador</th><th class="n">Duração</th><th>Fala</th>'
                  '</tr></thead><tbody>')
         for c in longos:
-            h.append(f'<tr><td>{fmt_clock(c["start"])}</td><td>{_chip(c["jogador"], colors)}</td>'
+            h.append(f'<tr data-t="{c["start"]}"><td>{fmt_clock(c["start"])}</td><td>{_chip(c["jogador"], colors)}</td>'
                      f'<td class="n">{c["duracao"]}s</td><td>{_e(c["texto"])}</td></tr>')
         h.append("</tbody></table></div>")
 
@@ -454,11 +570,19 @@ def render_report(timeline: list[Utterance], metrics: dict, meta: dict, path: Pa
                 tags += '<span class="tag morto">morto</span>'
             elif ctx["fase"] in ("buy", "pos_round"):
                 tags += f'<span class="tag fase">{FASE_LABEL[ctx["fase"]]}</span>'
-        h.append(f'<div class="{cls}" data-p="{_e(u.player)}"><div class="t">{fmt_clock(u.start)}'
+        h.append(f'<div class="{cls}" data-p="{_e(u.player)}" data-t="{u.start:.2f}"><div class="t">{fmt_clock(u.start)}'
                  f'</div><div class="p">{_chip(u.player, colors)}</div><div class="x">{_e(u.text)}'
                  f'{tags}</div></div>')
     h.append("</div>")
     h.append('<p class="muted" style="margin-top:24px;font-size:12px">Gerado por espumas-transcript. '
              'Métricas automáticas: use como ponto de partida para a revisão, não como veredito.</p>')
-    h.append(f"</main><script>{JS}</script></body></html>")
+    if audio:
+        tipo = "audio/webm" if audio.endswith(".webm") else "audio/mp4"
+        h.append('<div class="player" role="region" aria-label="Áudio da call">'
+                 f'<audio id="player" controls preload="metadata"><source src="{_e(audio)}" '
+                 f'type="{tipo}"></audio><span class="muted" id="player-dica">Clique em qualquer '
+                 'horário, fala ou barra da linha do tempo para ouvir aquele momento.</span></div>')
+        h.append(f"</main><script>{JS}{JS_AUDIO}</script></body></html>")
+    else:
+        h.append(f"</main><script>{JS}</script></body></html>")
     path.write_text("".join(h), encoding="utf-8")

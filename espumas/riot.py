@@ -77,6 +77,9 @@ class HenrikClient:
         data = self._get(path, {"size": size}).get("data") or []
         out = []
         for m in data:
+            # Deathmatch e afins têm um "round" só: não servem para a análise.
+            if m.get("rounds") is not None and len(m["rounds"]) <= 1:
+                continue
             mid = (m.get("metadata") or {}).get("match_id")
             if mid and m.get("rounds") is not None:
                 self._cache[mid] = m
@@ -118,17 +121,27 @@ def summarize(raw: dict, riot_id: str | None) -> dict:
         "venceu": teams.get(team, {}).get("won") if team else None,
         "agente": (me.get("agent") or {}).get("name"),
         "kda": [stats.get("kills"), stats.get("deaths"), stats.get("assists")] if stats else None,
+        "rounds": len(raw.get("rounds") or []) if raw.get("rounds") is not None else None,
     }
 
 
-def detect_round_t0(kills: list[dict], buy_s: float = 30.0) -> str:
+def detect_round_t0(kills: list[dict], buy_s: float = 30.0,
+                    plants_s: list[float] | None = None) -> str:
     """Descobre se o "tempo no round" da API conta da fase de compra ou da barreira.
 
-    Durante a fase de compra ninguém morre (barreiras). Se a contagem começasse na fase de
-    compra, nenhuma kill teria tempo no round menor que ~30 s.
+    Durante a compra ninguém morre nem planta (barreiras). Se a contagem começasse na
+    compra, nenhuma kill ou plant teria tempo no round menor que ~30 s. Em partidas reais
+    (out/2026) há plants com ~20 s, então o padrão sem evidência é "barreira".
     """
     early = sum(1 for k in kills if k["t_round_s"] < buy_s - 1)
-    return "barreira" if early >= 2 else "buy"
+    early += sum(1 for t in plants_s or [] if t < buy_s - 1)
+    if early >= 1:
+        return "barreira"
+    tardias = [k["t_round_s"] for k in kills]
+    # Muitas kills e nenhuma antes de 30 s: aí sim parece contar da compra.
+    if len(tardias) >= 20 and min(tardias) >= buy_s:
+        return "buy"
+    return "barreira"
 
 
 def _round_starts(raw_rounds: list[dict], kills: list[dict]) -> list[tuple[float | None, bool]]:
@@ -236,7 +249,9 @@ def normalize_match(raw: dict, riot_id: str | None, buy_s: float = 30.0) -> dict
         "jogadores": jogadores,
         "rounds": rounds,
         "kills": kills,
-        "t0_round": detect_round_t0(kills, buy_s),
+        "t0_round": detect_round_t0(
+            kills, buy_s, [(r.get("plant") or {}).get("round_time_in_ms", 0) / 1000
+                           for r in raw_rounds if r.get("plant")]),
     }
 
 

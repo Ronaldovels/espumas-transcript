@@ -145,3 +145,34 @@ def test_round_sem_kills_tem_inicio_estimado():
     r5 = m["rounds"][4]
     assert r5["inicio_estimado"] is True
     assert r5["inicio_s"] == pytest.approx(45 + 4 * exemplo.INTERVALO_S, abs=2)
+
+
+def test_plant_cedo_indica_barreira():
+    from espumas.riot import detect_round_t0
+
+    # Dado real (Abyss, competitivo): plant com 19,9 s de round -> zero é a barreira
+    assert detect_round_t0([], 30.0, [19.871, 44.6]) == "barreira"
+    tardias = [{"t_round_s": 35 + i} for i in range(25)]
+    assert detect_round_t0(tardias, 30.0, [70.0]) == "buy"
+    assert detect_round_t0([], 30.0, []) == "barreira"  # sem evidência: padrão real
+
+
+def test_lista_esconde_deathmatch():
+    from espumas.riot import HenrikClient
+
+    dm = {"metadata": {"match_id": "dm"}, "rounds": [{"id": 0}], "players": [], "teams": []}
+    comp = exemplo.raw_match()
+
+    class R:
+        status_code = 200
+
+        def json(self):
+            return {"data": [dm, comp]}
+
+    class Http:
+        def get(self, *a, **k):
+            return R()
+
+    c = HenrikClient("k", http=Http())
+    lista = c.list_matches("Ronaldovels#BR1")
+    assert [m["id"] for m in lista] == ["demo-0001"] and lista[0]["rounds"] == 12

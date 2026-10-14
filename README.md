@@ -134,7 +134,7 @@ correcoes:          # erros que se repetem na sua call
 - As métricas são automáticas: **ponto de partida para revisar a call**, não veredito. Uma interrupção pode ser um callout urgente e correto; fala de morto pode ser info útil.
 - A HenrikDev API é não oficial: pode mudar ou ficar fora do ar.
 - O fim de cada round é estimado (última kill, defuse ou spike explodindo).
-- Ainda não foi validado com uma partida real: a primeira análise serve de calibração.
+- Formato da API conferido com uma partida real (out/2026): o tempo no round conta a partir da barreira. O alinhamento com uma call real ainda precisa do primeiro teste.
 
 ## Próximos passos
 

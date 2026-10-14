@@ -1,0 +1,9 @@
+[project]
+name = "espumas-transcript"
+version = "0.1.0"
+description = "Transcrição e análise de comunicação de calls de Valorant (Discord + Craig)"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

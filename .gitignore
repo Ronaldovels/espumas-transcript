@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Gravações e resultados (áudio da call não vai pro git)
+saida/
+gravacoes/
+*.flac
+*.ogg
+*.opus
+*.wav
+*.zip
+
+config.yaml

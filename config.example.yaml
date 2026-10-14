@@ -1,0 +1,31 @@
+# Copie para config.yaml e ajuste. Tudo aqui é opcional.
+
+# Nome no arquivo do Craig -> apelido no relatório.
+# O nome do arquivo é o usuário do Discord: "1-ronaldovels_0.flac" -> "ronaldovels".
+jogadores:
+  ronaldovels: Ronaldo
+  # amigo_do_discord: Kaio
+
+transcricao:
+  modelo: large-v3-turbo     # ou large-v3 (um pouco mais preciso, mais lento)
+  idioma: pt
+  dispositivo: cuda          # cpu se não tiver GPU
+  compute_type: float16      # int8_float16 usa menos VRAM
+  beam_size: 5
+
+# Palavras que o Whisper deve conhecer (apelidos do time, callouts próprios).
+vocabulario:
+  - Espumas
+
+# Correções forçadas depois da transcrição (sem diferenciar maiúsculas).
+correcoes:
+  # "ronaldin": "Ronaldo"
+
+metricas:
+  juntar_gap_s: 0.6              # pausa que separa duas falas do mesmo jogador
+  min_sobreposicao_s: 0.3        # sobreposição menor que isso é ignorada
+  backchannel_max_palavras: 2    # "boa", "uhum", "ok" não contam como interrupção
+  backchannel_max_s: 0.8
+  callout_longo_s: 6.0           # fala acima disso é marcada como longa
+  callout_longo_palavras: 18
+  janela_ordens_s: 3.0           # ordens de jogadores diferentes nessa janela

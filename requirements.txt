@@ -1,0 +1,11 @@
+# Transcrição
+faster-whisper>=1.1.1
+ctranslate2>=4.5.0          # 4.5+ necessário para RTX série 50 (Blackwell)
+
+# Bibliotecas CUDA usadas pelo faster-whisper na GPU (Windows/Linux)
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*
+
+# Utilidades
+pyyaml>=6
+rapidfuzz>=3

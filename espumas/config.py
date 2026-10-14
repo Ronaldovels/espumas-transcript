@@ -8,9 +8,30 @@ from pathlib import Path
 import yaml
 
 DEFAULTS: dict = {
-    # Mapeia o nome que aparece no arquivo do Craig -> apelido no relatório.
-    # Ex.: {"ronaldovels": "Ronaldo"}. Jogadores não listados usam o nome do arquivo.
+    # Usuário do Discord -> apelido no relatório (texto) ou
+    # {"apelido": "Ronaldo", "riot": "Nome#TAG"} para ligar com a partida.
     "jogadores": {},
+    # Dados da partida via HenrikDev API (não oficial). Chave grátis no Discord deles.
+    "riot": {
+        "api_key": "",
+        "riot_id": "",  # "Nome#TAG" de quem busca as partidas
+        "regiao": "br",
+        "plataforma": "pc",
+    },
+    # Sincronização da gravação com a partida.
+    "sinc": {
+        # Palavra falada na call no momento combinado (padrão: barreira caindo no round 1).
+        "palavra": "espumas",
+        "round": 1,
+        "fase": "round",  # "round" (relógio do round) ou "buy" (relógio da fase de compra)
+        "restantes_s": 100,  # quanto o relógio mostrava (100 = 1:40 = barreira caindo)
+        # Só vale a primeira ocorrência no começo; repetições depois são ignoradas.
+        "janela_inicio_s": 900,  # sem horário da partida: primeiros 15 min da gravação
+        "janela_relogio_s": 240,  # com horário: ±4 min de onde o round 1 deveria estar
+        "buy_fase_s": 30,
+        # Ajuste fino automático pelas mortes (quem morre costuma falar logo depois).
+        "ajuste_max_s": 20,
+    },
     "transcricao": {
         "modelo": "large-v3-turbo",
         "idioma": "pt",
@@ -61,3 +82,39 @@ def load_config(path: str | Path | None = None) -> dict:
     with p.open(encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
     return _merge(DEFAULTS, data)
+
+
+def save_config(cfg: dict, path: str | Path) -> None:
+    with Path(path).open("w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, allow_unicode=True, sort_keys=False)
+
+
+def _entry(players: dict | None, discord: str):
+    if not players:
+        return None
+    if discord in players:
+        return players[discord]
+    low = discord.lower()
+    for k, v in players.items():
+        # Aceita a chave escrita como no Discord ("ronaldo.vels") ou como no arquivo.
+        if k.lower() == low or _safe(k).lower() == _safe(discord).lower():
+            return v
+    return None
+
+
+def _safe(name: str) -> str:
+    import re
+
+    return re.sub(r"[^a-zA-Z0-9]", "_", name)
+
+
+def player_alias(players: dict | None, discord: str) -> str:
+    e = _entry(players, discord)
+    if isinstance(e, dict):
+        return e.get("apelido") or discord
+    return e or discord
+
+
+def player_riot(players: dict | None, discord: str) -> str | None:
+    e = _entry(players, discord)
+    return e.get("riot") if isinstance(e, dict) else None

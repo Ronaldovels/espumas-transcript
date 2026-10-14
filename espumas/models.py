@@ -50,5 +50,6 @@ class Utterance:
 class Track:
     """Uma faixa de áudio de um jogador (ex.: arquivo do Craig)."""
 
-    player: str
+    player: str  # nome exibido (apelido)
     path: str
+    discord: str = ""  # usuário do Discord

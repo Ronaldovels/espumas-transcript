@@ -33,8 +33,9 @@ def craig_dir(tmp_path):
     d.mkdir()
     silence = np.zeros(16000 * 15, dtype=np.float32)
     for i, name in enumerate(FALAS, 1):
-        sf.write(d / f"{i}-{name}_0.flac", silence, 16000)
-    (d / "info.txt").write_text("Craig")
+        sf.write(d / f"{i}-{name}.flac", silence, 16000)
+    (d / "info.txt").write_text("Recording x\nStart time:\t2026-10-14T22:00:00.000Z\n\nTracks:\n"
+                                + "".join(f"\t{n}#0 (1)\n" for n in FALAS))
     return d
 
 
@@ -43,7 +44,7 @@ def fake_transcriber(monkeypatch):
     def fake(self, track, progress=None):
         from pathlib import Path
 
-        key = Path(track.path).stem.split("-", 1)[1].rsplit("_", 1)[0]
+        key = Path(track.path).stem.split("-", 1)[1]
         if progress:
             progress(15.0, 15.0)
         return [_seg(*f) for f in FALAS[key]]
@@ -54,14 +55,28 @@ def fake_transcriber(monkeypatch):
 def test_nomes_do_craig():
     from pathlib import Path
 
-    assert player_from_filename(Path("1-ronaldovels_0.flac")) == "ronaldovels"
-    assert player_from_filename(Path("12-Fulano#1234.ogg")) == "Fulano"
-    assert player_from_filename(Path("3-nome-com-hifen.flac")) == "nome-com-hifen"
+    # Craig: "<n>-<usuário>" com tudo que não é letra/número virando "_"
+    assert player_from_filename(Path("1-ronaldovels.flac")) == "ronaldovels"
+    assert player_from_filename(Path("2-ronaldo_24.flac")) == "ronaldo_24"  # não corta números
+    assert player_from_filename(Path("12-nome_com_ponto.ogg")) == "nome_com_ponto"
+
+
+def test_info_txt():
+    from espumas.tracks import parse_info_txt
+
+    txt = ("Recording abc\r\n\r\nGuild:\t\tEspumas (1)\r\nChannel:\tcall (2)\r\n"
+           "Requester:\tronaldo.vels#0 (3)\r\nStart time:\t2026-10-14T22:04:47.600Z\r\n\r\n"
+           "Tracks:\r\n\tronaldo.vels#0 (3)\r\n\tkaio#0 (4)\r\n")
+    info = parse_info_txt(txt)
+    assert info["inicio"].isoformat() == "2026-10-14T22:04:47.600000+00:00"
+    assert info["usuarios"] == {1: "ronaldo.vels", 2: "kaio"}
 
 
 def test_encontra_faixas_e_apelidos(craig_dir):
-    tracks = find_tracks(craig_dir, {"RonaldoVels": "Ronaldo"})
+    tracks, info = find_tracks(craig_dir, {"RonaldoVels": "Ronaldo"})
     assert [t.player for t in tracks] == ["Ronaldo", "amigo1", "amigo2"]
+    assert [t.discord for t in tracks] == ["ronaldovels", "amigo1", "amigo2"]
+    assert info["inicio"].year == 2026
 
 
 def test_zip(craig_dir, tmp_path):
@@ -69,8 +84,8 @@ def test_zip(craig_dir, tmp_path):
     with zipfile.ZipFile(z, "w") as zf:
         for f in craig_dir.iterdir():
             zf.write(f, f"craig_abc/{f.name}")
-    tracks = find_tracks(z, work_dir=tmp_path / "out")
-    assert len(tracks) == 3
+    tracks, info = find_tracks(z, work_dir=tmp_path / "out")
+    assert len(tracks) == 3 and info["inicio"] is not None
 
 
 def test_ponta_a_ponta(craig_dir, tmp_path, fake_transcriber):

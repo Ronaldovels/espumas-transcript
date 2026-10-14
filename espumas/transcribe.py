@@ -65,6 +65,10 @@ def _cache_key(track: Track, cfg: dict, prompt: str) -> str:
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
 
+# Modelos já carregados, reaproveitados entre análises (a interface roda várias seguidas).
+_MODELOS: dict[tuple, object] = {}
+
+
 class Transcriber:
     """Carrega o modelo uma vez e transcreve várias faixas."""
 
@@ -79,14 +83,13 @@ class Transcriber:
     def _load(self):
         if self._model is not None:
             return self._model
-        _windows_cuda_dlls()
-        from faster_whisper import WhisperModel  # import tardio: testes não precisam
+        key = (self.cfg["modelo"], self.cfg["dispositivo"], self.cfg["compute_type"])
+        if key not in _MODELOS:
+            _windows_cuda_dlls()
+            from faster_whisper import WhisperModel  # import tardio: testes não precisam
 
-        self._model = WhisperModel(
-            self.cfg["modelo"],
-            device=self.cfg["dispositivo"],
-            compute_type=self.cfg["compute_type"],
-        )
+            _MODELOS[key] = WhisperModel(key[0], device=key[1], compute_type=key[2])
+        self._model = _MODELOS[key]
         return self._model
 
     def transcribe(self, track: Track, progress=None) -> list[dict]:

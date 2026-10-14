@@ -1,4 +1,5 @@
 -r requirements.txt
+# (inclui fastapi e httpx, usados nos testes da interface)
 pytest>=8
 numpy
 soundfile

@@ -145,7 +145,7 @@ def long_callouts(timeline: list[Utterance], cfg: dict) -> list[dict]:
 
 def compute_metrics(timeline: list[Utterance], players: list[str], cfg: dict,
                     duracao_total: float | None = None) -> dict:
-    duracao_total = duracao_total or max((u.end for u in timeline), default=0.0)
+    duracao_total = max(duracao_total or 0.0, max((u.end for u in timeline), default=0.0))
     players = list(dict.fromkeys(list(players) + [u.player for u in timeline]))
 
     overlaps = find_overlaps(timeline, cfg)

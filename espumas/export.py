@@ -37,8 +37,10 @@ def write_srt(timeline: list[Utterance], path: Path) -> None:
     path.write_text("\n".join(blocks), encoding="utf-8")
 
 
-def write_json(timeline: list[Utterance], metrics: dict, meta: dict, path: Path) -> None:
-    data = {"meta": meta, "metricas": metrics, "falas": [u.to_dict() for u in timeline]}
+def write_json(timeline: list[Utterance], metrics: dict, meta: dict, path: Path,
+               extra: dict | None = None) -> None:
+    data = {"meta": meta, "metricas": metrics, **(extra or {}),
+            "falas": [u.to_dict() for u in timeline]}
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -46,3 +48,9 @@ def read_json(path: Path) -> tuple[list[Utterance], dict, dict]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     return ([Utterance.from_dict(d) for d in data["falas"]], data.get("metricas", {}),
             data.get("meta", {}))
+
+
+def read_analysis(path: Path) -> dict:
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    data["falas"] = [Utterance.from_dict(d) for d in data["falas"]]
+    return data

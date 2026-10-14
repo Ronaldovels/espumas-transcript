@@ -1,16 +1,35 @@
-# Copie para config.yaml e ajuste. Tudo aqui é opcional.
+# Opcional: a interface (python -m espumas web) cria e atualiza o config.yaml sozinha.
+# Copie para config.yaml se preferir editar à mão. Tudo aqui é opcional.
 
-# Nome no arquivo do Craig -> apelido no relatório.
-# O nome do arquivo é o usuário do Discord: "1-ronaldovels_0.flac" -> "ronaldovels".
+# Usuário do Discord -> apelido no relatório e conta no Valorant.
 jogadores:
-  ronaldovels: Ronaldo
-  # amigo_do_discord: Kaio
+  ronaldo.vels:
+    apelido: Ronaldo
+    riot: Ronaldovels#BR1
+  # amigo: Kaio            # forma curta: só o apelido
+
+# Dados da partida (HenrikDev API, não oficial). Chave grátis no Discord deles.
+riot:
+  api_key: ""
+  riot_id: ""              # Nome#TAG de quem busca as partidas
+  regiao: br
+  plataforma: pc
+
+sinc:
+  palavra: espumas         # falada na call no momento combinado
+  round: 1                 # momento combinado: barreira caindo no round 1
+  fase: round              # "round" (relógio do round) ou "buy" (relógio da compra)
+  restantes_s: 100         # relógio mostrando 1:40 = barreira caindo
+  janela_inicio_s: 900     # sem horário: só vale a palavra nos primeiros 15 min
+  janela_relogio_s: 240    # com horário: só ±4 min de onde o round 1 deveria estar
+  buy_fase_s: 30
+  ajuste_max_s: 20         # ajuste fino pelas mortes, no máximo ±20 s
 
 transcricao:
-  modelo: large-v3-turbo     # ou large-v3 (um pouco mais preciso, mais lento)
+  modelo: large-v3-turbo   # ou large-v3 (um pouco mais preciso, mais lento)
   idioma: pt
-  dispositivo: cuda          # cpu se não tiver GPU
-  compute_type: float16      # int8_float16 usa menos VRAM
+  dispositivo: cuda        # cpu se não tiver GPU
+  compute_type: float16    # int8_float16 usa menos VRAM
   beam_size: 5
 
 # Palavras que o Whisper deve conhecer (apelidos do time, callouts próprios).
@@ -18,7 +37,7 @@ vocabulario:
   - Espumas
 
 # Correções forçadas depois da transcrição (sem diferenciar maiúsculas).
-correcoes:
+correcoes: {}
   # "ronaldin": "Ronaldo"
 
 metricas:
@@ -26,6 +45,6 @@ metricas:
   min_sobreposicao_s: 0.3        # sobreposição menor que isso é ignorada
   backchannel_max_palavras: 2    # "boa", "uhum", "ok" não contam como interrupção
   backchannel_max_s: 0.8
-  callout_longo_s: 6.0           # fala acima disso é marcada como longa
+  callout_longo_s: 6.0
   callout_longo_palavras: 18
-  janela_ordens_s: 3.0           # ordens de jogadores diferentes nessa janela
+  janela_ordens_s: 3.0

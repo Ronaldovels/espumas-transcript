@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Espumas — revisão de call</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="bubbles" viewBox="0 0 40 40" aria-hidden="true">
+      <circle cx="14" cy="22" r="10"/><circle cx="28" cy="13" r="7"/><circle cx="29" cy="29" r="5"/>
+    </svg>
+    <div>
+      <h1>Espumas</h1>
+      <p>Revisão da call</p>
+    </div>
+  </div>
+  <button type="button" class="ghost" id="abrir-config">Configurações</button>
+</header>
+
+<main class="layout">
+  <section class="nova" aria-labelledby="t-nova">
+    <h2 id="t-nova">Nova análise</h2>
+
+    <ol class="passos">
+      <li class="passo" id="passo-gravacao">
+        <h3>Gravação do Craig</h3>
+        <label class="drop" id="drop">
+          <input type="file" id="arquivo" accept=".zip" hidden>
+          <strong>Arraste o .zip do Craig aqui</strong>
+          <span>ou clique para escolher o arquivo</span>
+        </label>
+        <form class="linha" id="form-caminho">
+          <input type="text" id="caminho" placeholder="ou cole o caminho: C:\Users\voce\Downloads\craig_abc.flac.zip" aria-label="Caminho da gravação">
+          <button type="submit" class="ghost">Usar caminho</button>
+        </form>
+        <div class="resultado" id="gravacao-info" hidden></div>
+      </li>
+
+      <li class="passo" id="passo-partida">
+        <h3>Partida</h3>
+        <p class="ajuda" id="partida-ajuda">Busca suas últimas partidas para cruzar a call com rounds, kills e mortes.</p>
+        <div class="linha">
+          <button type="button" id="buscar-partidas">Buscar minhas partidas</button>
+          <button type="button" class="ghost" id="sem-partida">Analisar só a call</button>
+        </div>
+        <div class="partidas" id="partidas" role="radiogroup" aria-label="Partidas"></div>
+      </li>
+
+      <li class="passo" id="passo-sinc">
+        <h3>Sincronização</h3>
+        <fieldset class="opcoes" id="sinc-opcoes">
+          <legend class="sr">Como sincronizar</legend>
+          <label class="opcao"><input type="radio" name="sinc" value="padrao" checked>
+            <span><b>Falei “<span class="palavra">espumas</span>” quando a barreira caiu no round 1</b>
+            <small>Vale só a primeira vez, perto do começo. Repetições depois são ignoradas.</small></span></label>
+          <label class="opcao"><input type="radio" name="sinc" value="personalizado">
+            <span><b>Falei “<span class="palavra">espumas</span>” em outro momento</b>
+            <small class="sub-campos">
+              Round <input type="number" id="s-round" min="1" max="30" value="1" aria-label="Round">
+              <select id="s-fase" aria-label="Fase"><option value="buy">na compra</option><option value="round">com o round rolando</option></select>
+              faltando <input type="text" id="s-relogio" value="0:25" size="5" aria-label="Tempo no relógio do jogo">
+            </small></span></label>
+          <label class="opcao"><input type="radio" name="sinc" value="manual">
+            <span><b>Sei em que ponto da gravação a barreira caiu no round 1</b>
+            <small class="sub-campos">Em <input type="text" id="s-manual" placeholder="12:34" size="7" aria-label="Momento na gravação"> da gravação</small></span></label>
+          <label class="opcao"><input type="radio" name="sinc" value="nenhum">
+            <span><b>Não falei</b>
+            <small>Usa o horário da gravação e ajusta pelas mortes. Menos preciso.</small></span></label>
+        </fieldset>
+      </li>
+
+      <li class="passo" id="passo-jogadores">
+        <h3>Jogadores</h3>
+        <p class="ajuda" id="jogadores-ajuda">Anexe a gravação para ver quem estava na call.</p>
+        <div class="tabela-wrap"><table class="jogadores" id="jogadores" hidden>
+          <thead><tr><th>Discord</th><th>Nome no relatório</th><th>Conta no Valorant</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </li>
+    </ol>
+
+    <div class="enviar">
+      <input type="text" id="nome" placeholder="Nome da análise (ex.: Ascent contra o time do Pedro)" aria-label="Nome da análise">
+      <button type="button" class="principal" id="analisar" disabled>Analisar</button>
+    </div>
+    <p class="erro" id="erro" role="alert" hidden></p>
+  </section>
+
+  <aside class="historico" aria-labelledby="t-hist">
+    <h2 id="t-hist">Análises</h2>
+    <div id="andamento"></div>
+    <ul class="lista" id="lista"></ul>
+    <p class="vazio" id="vazio" hidden>Nenhuma análise ainda. A primeira aparece aqui assim que terminar.</p>
+  </aside>
+</main>
+
+<section class="visor" id="visor" hidden aria-label="Relatório">
+  <div class="visor-barra">
+    <button type="button" class="ghost" id="fechar-visor">Voltar</button>
+    <span id="visor-titulo"></span>
+    <nav class="downloads" id="visor-downloads"></nav>
+  </div>
+  <iframe id="visor-frame" title="Relatório"></iframe>
+</section>
+
+<dialog id="config">
+  <form method="dialog" id="form-config">
+    <h2>Configurações</h2>
+    <label>Chave da HenrikDev API
+      <input type="password" id="c-chave" autocomplete="off" placeholder="cole a chave aqui">
+      <small id="c-chave-status">Gratuita, pedida no Discord da HenrikDev. Fica só no seu PC (config.yaml).</small>
+    </label>
+    <label>Seu Riot ID
+      <input type="text" id="c-riot" placeholder="Nome#TAG">
+    </label>
+    <div class="dupla">
+      <label>Região
+        <select id="c-regiao"><option>br</option><option>latam</option><option>na</option><option>eu</option><option>ap</option><option>kr</option></select>
+      </label>
+      <label>Palavra de sinc
+        <input type="text" id="c-palavra">
+      </label>
+    </div>
+    <label>Modelo de transcrição
+      <select id="c-modelo">
+        <option value="large-v3-turbo">large-v3-turbo (rápido, recomendado)</option>
+        <option value="large-v3">large-v3 (um pouco mais preciso, mais lento)</option>
+      </select>
+    </label>
+    <p class="erro" id="c-erro" hidden></p>
+    <div class="linha fim">
+      <button value="cancel" class="ghost" formnovalidate>Cancelar</button>
+      <button type="submit" class="principal" id="salvar-config">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
